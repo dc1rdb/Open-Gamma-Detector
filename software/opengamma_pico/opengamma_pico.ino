@@ -62,11 +62,11 @@ struct Config {
   bool geiger_mode = false;        // Measure only cps, not energy
   bool print_spectrum = false;     // Print the finishes spectrum, not just chronological events
   size_t meas_avg = 5;             // Number of meas. averaged each event, higher=longer dead time
-  bool enable_display = false;     // Enable I2C Display, see settings above
+  bool enable_display = true;     // Enable I2C Display, see settings above
   bool trng_enabled = false;       // Enable the True Random Number Generator
   bool subtract_baseline = false;  // Subtract the DC bias from each pulse
-  bool cps_correction = true;      // Correct the cps for the DNL compensation
-  uint8_t buzzer_tick = 0;         // Ticker on-time for one pulse in ms
+  bool cps_correction = false;      // Correct the cps for the DNL compensation
+  uint8_t buzzer_tick = 1;         // Ticker on-time for one pulse in ms
 
   // Do NOT modify this function:
   bool operator==(const Config &other) const {
@@ -79,7 +79,7 @@ struct Config {
     =================
 */
 
-const String FWVERS = "3.5.2";  // Firmware Version Code
+const String FWVERS = "3.5.2rd";  // Firmware Version Code
 
 const uint8_t GND_PIN = A2;    // GND meas pin
 const uint8_t VSYS_MEAS = A3;  // VSYS/3
@@ -91,7 +91,7 @@ const uint8_t AMP_PIN = A0;         // Preamp (baseline) meas pin
 const uint8_t INT_PIN = 16;         // Signal interrupt pin
 const uint8_t RST_PIN = 22;         // Peak detector MOSFET reset pin
 const uint8_t LED = 25;             // LED on GP25
-const uint16_t EVT_RESET_C = 3000;  // Number of counts after which the OLED stats will be reset
+const uint16_t EVT_RESET_C = 65535;  // Number of counts after which the OLED stats will be reset
 const uint16_t OUT_REFRESH = 1000;  // Milliseconds between serial data outputs
 
 const float VREF_VOLTAGE = 3.0;  // ADC reference voltage, defaults 3.3, with reference 3.0
@@ -164,7 +164,7 @@ void resetSampleHold(uint8_t time = 2) {  // Reset sample and hold circuit
 
 
 void queryButton() {
-  if (BOOTSEL) {
+  if ((BOOTSEL) || (digitalRead(8) == LOW)) {
     // Switch between Geiger and Energy modes
     conf.geiger_mode = !conf.geiger_mode;
     event_position = 0;
@@ -180,7 +180,7 @@ void queryButton() {
 
     saveSettings();  // Saved updated settings
 
-    while (BOOTSEL) {      // Wait for BOOTSEL to be released
+    while ((BOOTSEL) || (digitalRead(8) == LOW)) {      // Wait for BOOTSEL to be released
       rp2040.wdt_reset();  // Reset watchdog so that the device doesn't quit if pressed for too long
       delay(1);
     }
@@ -800,7 +800,7 @@ float readTemp() {
 
 
 void drawSpectrum() {
-  const uint16_t BINSIZE = floor(pow(2, ADC_RES) / SCREEN_WIDTH);
+  const uint16_t BINSIZE = floor(pow(2, ADC_RES-1) / SCREEN_WIDTH);
   uint32_t eventBins[SCREEN_WIDTH];
   uint16_t offset = 0;
   uint32_t max_num = 0;
@@ -1210,7 +1210,7 @@ void setup1() {
       println("Failed communication with the display. Maybe the I2C address is incorrect?", true);
       conf.enable_display = false;
     } else {
-      display.setRotation(2);
+      display.setRotation(0);
       display.setTextSize(2);  // Draw 2X-scale text
       display.setTextColor(DISPLAY_WHITE);
 
