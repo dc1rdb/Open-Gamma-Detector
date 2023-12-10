@@ -62,11 +62,11 @@ struct Config {
   bool geiger_mode = false;        // Measure only cps, not energy
   bool print_spectrum = false;     // Print the finishes spectrum, not just chronological events
   size_t meas_avg = 2;             // Number of meas. averaged each event, higher=longer dead time
-  bool enable_display = false;     // Enable I2C Display, see settings above
+  bool enable_display = true;     // Enable I2C Display, see settings above
   bool enable_trng = false;        // Enable the True Random Number Generator
   bool subtract_baseline = false;  // Subtract the DC bias from each pulse
   bool cps_correction = true;      // Correct the cps for the DNL compensation
-  bool enable_ticker = false;      // Enable the buzzer to be used as a ticker for pulses
+  bool enable_ticker = true;      // Enable the buzzer to be used as a ticker for pulses
   size_t tick_rate = 20;           // Buzzer ticks once every tick_rate pulses
 
   // Do NOT modify the following operator function
@@ -80,7 +80,7 @@ struct Config {
     =================
 */
 
-const String FWVERS = "4.0.2";  // Firmware Version Code
+const String FWVERS = "4.0.2rd";  // Firmware Version Code
 
 const uint8_t GND_PIN = A2;    // GND meas pin
 const uint8_t VSYS_MEAS = A3;  // VSYS/3
@@ -89,15 +89,15 @@ const uint8_t PS_PIN = 23;     // SMPS power save pin
 
 const uint8_t AIN_PIN = A1;     // Analog input pin
 const uint8_t AMP_PIN = A0;     // Preamp (baseline) meas pin
-const uint8_t INT_PIN = 18;     // Signal interrupt pin
+const uint8_t INT_PIN = 16;     // Signal interrupt pin
 const uint8_t RST_PIN = 22;     // Peak detector MOSFET reset pin
 const uint8_t LED = 25;         // Built-in LED on GP25
-const uint8_t BUZZER_PIN = 7;   // Buzzer PWM pin for the ticker
+const uint8_t BUZZER_PIN = 9;   // Buzzer PWM pin for the ticker
 const uint8_t BUTTON_PIN = 14;  // Misc button pin
 
 const uint16_t BUZZER_FREQ = 2700;  // Frequency used for the buzzer PWM (resonance freq of the buzzer)
 const uint8_t BUZZER_TICK = 10;     // On-time of the buzzer for a single pulse in ms
-const uint16_t EVT_RESET_C = 3000;  // Number of counts after which the OLED stats will be reset
+const uint16_t EVT_RESET_C = 65535;  // Number of counts after which the OLED stats will be reset
 const uint16_t OUT_REFRESH = 1000;  // Milliseconds between serial data outputs
 
 const float VREF_VOLTAGE = 3.0;  // ADC reference voltage, default is 3.0 with reference
@@ -174,7 +174,7 @@ void resetSampleHold(uint8_t time = 2) {  // Reset sample and hold circuit
 
 
 void queryButton() {
-  if (BOOTSEL) {
+  if ((BOOTSEL) || (digitalRead(8) == LOW)) {
     // Switch between Geiger and Energy modes
     conf.geiger_mode = !conf.geiger_mode;
     event_position = 0;
@@ -190,7 +190,7 @@ void queryButton() {
 
     saveSettings();  // Saved updated settings
 
-    while (BOOTSEL) {  // Wait for BOOTSEL to be released
+    while ((BOOTSEL) || (digitalRead(8) == LOW)) {      // Wait for BOOTSEL to be released
       delay(10);
       rp2040.wdt_reset();  // Reset watchdog so that the device doesn't quit if pressed for too long
     }
@@ -852,7 +852,7 @@ float readTemp() {
 
 
 void drawSpectrum() {
-  const uint16_t BINSIZE = floor(pow(2, ADC_RES) / SCREEN_WIDTH);
+  const uint16_t BINSIZE = floor(pow(2, ADC_RES-1) / SCREEN_WIDTH);
   uint32_t eventBins[SCREEN_WIDTH];
   uint16_t offset = 0;
   uint32_t max_num = 0;
@@ -1276,7 +1276,7 @@ void setup1() {
       println("Failed communication with the display. Maybe the I2C address is incorrect?", true);
       conf.enable_display = false;
     } else {
-      display.setRotation(2);
+      display.setRotation(0);
       display.setTextSize(2);  // Draw 2X-scale text
       display.setTextColor(DISPLAY_WHITE);
 
